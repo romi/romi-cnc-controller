@@ -59,6 +59,7 @@ void handle_set_homing(IRomiSerial *romiSerial, int16_t *args, const char *strin
 void handle_set_homing_speeds(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
 void handle_set_homing_mode(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
 void handle_enable(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
+void handle_is_enabled(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
 void handle_spindle(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
 void send_info(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
 void handle_test(IRomiSerial *romiSerial, int16_t *args, const char *string_arg);
@@ -78,6 +79,7 @@ const static MessageHandler handlers[] = {
         { 's', 3, false, handle_set_homing_speeds },
         { 'o', 1, false, handle_set_homing_mode },
         { 'E', 1, false, handle_enable },
+        { 'e', 0, false, handle_is_enabled },
         { 'S', 1, false, handle_spindle },
         { 'T', 1, false, handle_test },
         { '?', 0, false, send_info },
@@ -96,6 +98,7 @@ static int8_t homing_axes[3] =  {-1, -1, -1};
 static int16_t homing_speeds[3] =  {1000, 1000, 400};
 static int16_t homing_mode = kHomingDefault;
 static uint8_t limit_switches[3] = {0, 0, 0};
+static bool is_enabled_;
 
 int moveat(int dx, int dy, int dz);
 
@@ -122,6 +125,7 @@ void check_accuracy()
 
 void setup()
 {
+        is_enabled_ = false;
         disable_driver();
         
         Serial.begin(115200);
@@ -502,10 +506,18 @@ void handle_enable(IRomiSerial *romiSerial, int16_t *args, const char *string_ar
 {
         if (args[0] == 0) {
                 disable_driver();
+                is_enabled_ = false;
         } else {
                 enable_driver()
+                is_enabled_ = true;
         }
         romiSerial->send_ok();
+}
+
+void handle_is_enabled(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
+{
+        snprintf(reply_string, sizeof(reply_string), "[0,%d]", (int) is_enabled_);
+        romiSerial->send(reply_string);
 }
 
 void handle_spindle(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)

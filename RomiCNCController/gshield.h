@@ -49,10 +49,20 @@
 
 #define PIN_LIMIT_SWITCH_X   9
 #define PIN_LIMIT_SWITCH_Y   10
+
+//#define GSHIELD_BOARD
+#define XCARVE_BOARD
+
+#if defined(GSHIELD_BOARD)
+#define PIN_LIMIT_SWITCH_Z   11
+#define PIN_SPINLDE          12
+#endif
+
+#if defined(XCARVE_BOARD)
 #define PIN_LIMIT_SWITCH_Z   12
 #define PIN_SPINLDE          11
-/* #define PIN_LIMIT_SWITCH_Z   11 */
-/* #define PIN_SPINLDE          12 */
+#endif
+
 
 /* 
  * The STEP_ and DIRECTION_ defines below are taken from Grbl.
