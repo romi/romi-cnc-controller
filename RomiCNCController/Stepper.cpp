@@ -70,8 +70,8 @@ namespace romi {
         {
                 stepper_zero();
                 
-                Serial.print("stepper_init: Mode ");
-                Serial.println(romi::k10kHz);
+                // Serial.print("stepper_init: Mode ");
+                // Serial.println(romi::k10kHz);
                 
                 switch (mode) {
                 case k10kHz:

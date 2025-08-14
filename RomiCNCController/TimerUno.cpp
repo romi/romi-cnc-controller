@@ -218,8 +218,8 @@ namespace romi {
                 uint16_t compare_value = F_CPU / prescaling / frequency - 1;
                 OCR1A = compare_value;
                 
-                Serial.print("TimerUno.cpp: compare_value=");
-                Serial.println(compare_value);
+                // Serial.print("TimerUno.cpp: compare_value=");
+                // Serial.println(compare_value);
         }
 
         /**
