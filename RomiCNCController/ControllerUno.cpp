@@ -37,7 +37,7 @@ namespace romi {
 
 #define CONTROLLER XCARVE_CONTROLLER
         
-// Cablebot
+// Romi Rover 
 #if CONTROLLER == GSHIELD_CONTROLLER
 #define ENABLE_PIN_HIGH      1   
 #define PIN_LIMIT_SWITCH_Z   11
@@ -49,9 +49,9 @@ namespace romi {
 #define PIN_LIMIT_SWITCH_Z   12
 #define PIN_SPINLDE          11
 
-// Cablebot
+// Cablebot - Microstep Driver ST-4045-A1
 #elif CONTROLLER == CABLEBOT_CONTROLLER
-#define ENABLE_PIN_HIGH      0
+#define ENABLE_PIN_HIGH      1
 #define PIN_LIMIT_SWITCH_Z   11
 #define PIN_SPINLDE          12
 #endif
