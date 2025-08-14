@@ -255,20 +255,20 @@ namespace romi {
         uint8_t CNC::homing_speeds(int16_t v0, int16_t v1, int16_t v2)
         {
                 clear_error();
-                if (v0 > 0 && v0 < 2000) {
+                if ((homing_axes_[0] >= 0) && (v0 <= 0 || v0 > 2000)) {
+                        set_error(kInvalidSpeed, kInvalidSpeedMessage); 
+                } else {
                         homing_speeds_[0] = v0;
-                } else {
-                        set_error(kInvalidSpeed, kInvalidSpeedMessage); 
                 }
-                if (v1 > 0 && v1 < 2000) {
+                if ((homing_axes_[1] >= 0) && (v1 <= 0 || v1 > 2000)) {
+                        set_error(kInvalidSpeed, kInvalidSpeedMessage); 
+                } else {
                         homing_speeds_[1] = v1;
-                } else {
-                        set_error(kInvalidSpeed, kInvalidSpeedMessage); 
                 }
-                if (v2 > 0 && v2 < 2000) {
-                        homing_speeds_[2] = v2;
-                } else {
+                if ((homing_axes_[2] >= 0) && (v2 <= 0 || v2 > 2000)) {
                         set_error(kInvalidSpeed, kInvalidSpeedMessage); 
+                } else {
+                        homing_speeds_[2] = v2;
                 }
                 return error_code_;
         }
