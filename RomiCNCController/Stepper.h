@@ -21,20 +21,32 @@
   <http://www.gnu.org/licenses/>.
 
  */
+#ifndef _CNC_STEPPER_H_
+#define _CNC_STEPPER_H_
 
-#ifndef _OQUAM_I_GSHIELD_H_
-#define _OQUAM_I_GSHIELD_H_
+#include "Timer.h"
 
-class gShield : public IController
-{
-public:
+namespace romi {
 
-        gShield();
-        ~gShield() override = default;
+        /**
+         * \brief: Configure the stepper. Must be called with interrupts
+         * disabled (see cli()).
+         *
+         */
+        void stepper_init(TimerMode mode);
 
-        void init() override;
-        void enable() override;
-        void disable() override;
-};
 
-#endif
+        /**
+         * \brief: Sets the current position as the origin.
+         *
+         */
+        void stepper_zero();
+
+        void stepper_reset();
+        void stepper_enable();
+        void stepper_disable();
+        bool stepper_is_idle();
+        void stepper_get_position(int32_t *pos);
+}
+
+#endif // _CNC_STEPPER_H_

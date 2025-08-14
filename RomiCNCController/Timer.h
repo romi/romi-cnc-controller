@@ -21,9 +21,25 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _OQUAM_CONFIG_H_
-#define _OQUAM_CONFIG_H_
 
-#include "gshield.h"
+#ifndef _CNC_TIMER_H_
+#define _CNC_TIMER_H_
 
-#endif // _OQUAM_CONFIG_H_
+namespace romi {
+
+        typedef enum {
+                k10kHz = 10,
+                k25kHz = 25
+        } TimerMode;
+        
+        typedef void (*TimerCallback)(void);
+
+        void timer_init(TimerMode mode,
+                        TimerCallback timer_callback,
+                        TimerCallback reset_callback);
+        void timer_enable();
+        void timer_disable();
+        void timer_schedule_reset();
+}
+
+#endif // _CNC_TIMER_H_
