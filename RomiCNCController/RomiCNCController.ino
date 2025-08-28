@@ -23,7 +23,10 @@
  */
 #include <ArduinoSerial.h>
 #include <RomiSerial.h>
-//#include "Timer.h"
+#include "Controller.h"
+#include "TestController.h"
+#include "StepperControllerUno.h"
+#include "TimerUno.h"
 #include "CNC.h"
 
 using namespace romiserial;
@@ -68,23 +71,18 @@ const static MessageHandler handlers[] = {
         // { 'T', 1, false, handle_test },
 };
 
-romi::CNC cnc;
 ArduinoSerial serial(Serial);
 RomiSerial romiSerial(serial, serial, handlers, sizeof(handlers) / sizeof(MessageHandler));
 static char reply_string[80];
 
+romi::StepperControllerUno steppers_;
+romi::TimerUno timer_;
+romi::Controller controller_(steppers_, timer_);
+//romi::TestController controller_(steppers_, timer_);
+romi::CNC cnc_(romiSerial, controller_, steppers_);
+
 // volatile uint16_t debug_step_calls = 0;
 // volatile uint16_t debug_reset_calls = 0;
-
-// void step_callback()
-// {
-//         debug_step_calls++;
-// }
-
-// void reset_callback()
-// {
-//         debug_reset_calls++;
-// }
 
 void setup()
 {
@@ -92,8 +90,12 @@ void setup()
         // while (!Serial)
         //         ;
 
-        cnc.init();
+        cnc_.init(romi::k10kHz);
         //romi::timer_init(romi::k10kHz, step_callback, reset_callback);
+
+#if 0
+        timer_.enable();
+#endif
 }
 
 void loop()
@@ -101,81 +103,90 @@ void loop()
         romiSerial.handle_input();
         delay(1);
 
-        // Serial.print("Step calls: ");
-        // Serial.println(debug_step_calls);
-        // Serial.print("Reset calls: ");
-        // Serial.println(debug_reset_calls);
-        // romi::timer_schedule_reset();
-        // delay(100);
+#if 0
+        Serial.print("Steps: ");
+        Serial.print(timer_.get_count_timer_calls());
+        Serial.print(", Resets: ");
+        Serial.print(timer_.get_count_reset_calls());
+        Serial.print(", Limit: [");
+        Serial.print(steppers_.x_limit_switch());
+        Serial.print(",");
+        Serial.print(steppers_.y_limit_switch());
+        Serial.print(",");
+        Serial.print(steppers_.z_limit_switch());
+        Serial.print("]");
+        Serial.println();
+        delay(1000);
+#endif
 }
 
 void handle_moveto(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.schedule_moveto(args[0], args[1], args[2], args[3]) == 0) {
+        if (cnc_.schedule_moveto(args[0], args[1], args[2], args[3]) == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_move(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.schedule_move(args[0], args[1], args[2], args[3]) == 0) {
+        if (cnc_.schedule_move(args[0], args[1], args[2], args[3]) == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_moveat(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.schedule_moveat(args[0], args[1], args[2]) == 0) {
+        if (cnc_.schedule_moveat(args[0], args[1], args[2]) == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_pause(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.pause() == 0) {
+        if (cnc_.pause() == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_continue(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.continue_() == 0) {
+        if (cnc_.continue_() == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_reset(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.reset() == 0) {
+        if (cnc_.reset() == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_zero(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.zero() == 0) {
+        if (cnc_.zero() == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void send_position(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
         int32_t pos[3];
-        cnc.get_position(pos);
+        cnc_.get_position(pos);
 
         snprintf(reply_string, sizeof(reply_string),
                  "[0,%ld,%ld,%ld]", pos[0], pos[1], pos[2]);
@@ -186,52 +197,52 @@ void send_position(IRomiSerial *romiSerial, int16_t *args, const char *string_ar
 void send_idle(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
         snprintf(reply_string, sizeof(reply_string), "[0,%d,\"%c\"]",
-                 (int) cnc.is_idle(), cnc.get_state());
+                 (int) cnc_.is_idle(), cnc_.get_state());
         romiSerial->send(reply_string); 
 }
 
 void handle_homing(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.homing() == 0) {
+        if (cnc_.homing() == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_set_homing_axes(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.homing_axes(args[0], args[1], args[2]) == 0) {
+        if (cnc_.homing_axes(args[0], args[1], args[2]) == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_set_homing_speeds(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.homing_speeds(args[0], args[1], args[2]) == 0) {
+        if (cnc_.homing_speeds(args[0], args[1], args[2]) == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_set_homing_mode(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
-        if (cnc.homing_mode(args[0]) == 0) {
+        if (cnc_.homing_mode(args[0]) == 0) {
                 romiSerial->send_ok();  
         } else {
-                romiSerial->send_error(cnc.error_code(), cnc.error_message());  
+                romiSerial->send_error(cnc_.error_code(), cnc_.error_message());  
         }
 }
 
 void handle_enable(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
         if (args[0] == 0) {
-                cnc.power_down();
+                cnc_.power_down();
         } else {
-                cnc.power_up();
+                cnc_.power_up();
         }
         romiSerial->send_ok();
 }
@@ -239,16 +250,16 @@ void handle_enable(IRomiSerial *romiSerial, int16_t *args, const char *string_ar
 void handle_is_enabled(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
         snprintf(reply_string, sizeof(reply_string), "[0,%d]",
-                 (int) cnc.is_enabled());
+                 (int) cnc_.is_enabled());
         romiSerial->send(reply_string);
 }
 
 void handle_spindle(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 {
         if (args[0] == 0) {
-                cnc.set_spindle(false);
+                cnc_.set_spindle(false);
         } else {
-                cnc.set_spindle(true);
+                cnc_.set_spindle(true);
         }
         romiSerial->send_ok();
 }
@@ -265,10 +276,10 @@ void send_info(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 //         quit_testing = false;
 //         while (!quit_testing) {
                 
-//                 // cnc.schedule_moveat(1000, 1000, 100);
+//                 // cnc_.schedule_moveat(1000, 1000, 100);
 //                 // delay(500);
                 
-//                 // cnc.schedule_moveat(-1000, -1000, -100);
+//                 // cnc_.schedule_moveat(-1000, -1000, -100);
 //                 // delay(500);
                 
 //                 // update_limit_switches();
@@ -287,7 +298,7 @@ void send_info(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)
 // void stop_test()
 // {
 //         quit_testing = true;
-//         cnc.schedule_moveat(0, 0, 0);
+//         cnc_.schedule_moveat(0, 0, 0);
 // }
 
 // void handle_test(IRomiSerial *romiSerial, int16_t *args, const char *string_arg)

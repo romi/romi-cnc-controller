@@ -45,18 +45,22 @@ namespace romi {
 
         static inline int16_t _space()
         {
+                int16_t result;
+                
                 if (block_buffer.writepos >= block_buffer.readpos)
-                        return (BLOCK_BUFFER_SIZE
-                                - block_buffer.writepos
-                                + block_buffer.readpos - 1);
+                        result = (int16_t) (kBlockBufferSize
+                                            - block_buffer.writepos
+                                            + block_buffer.readpos - 1);
                 else
-                        return block_buffer.readpos - block_buffer.writepos - 1;
+                        result = (int16_t) (block_buffer.readpos
+                                            - block_buffer.writepos - 1);
 
                 // The following optimization takes advantage from the fact
                 // that the buffer size is a power of two.
-                // return (BLOCK_BUFFER_SIZE
+                // return (kBlockBufferSize
                 //         - block_buffer.writepos
-                //         + block_buffer.readpos - 1) & BLOCK_BUFFER_SIZE_MASK;
+                //         + block_buffer.readpos - 1) & kBlockBufferSizeMask;
+                return result;
         }
 
         int16_t block_buffer_space()
@@ -67,14 +71,14 @@ namespace romi {
         block_t *block_buffer_get_empty()
         {
                 if (_space() == 0)
-                        return 0;
+                        return nullptr;
                 return &block_buffer.block[block_buffer.writepos];
         }
 
         void block_buffer_ready()
         {
                 int16_t p = block_buffer.writepos + 1;
-                if (p == BLOCK_BUFFER_SIZE)
+                if (p == kBlockBufferSize)
                         p = 0;
                 block_buffer.writepos = p;
         }
@@ -88,7 +92,7 @@ namespace romi {
         {
                 block_t *b = &block_buffer.block[block_buffer.readpos];
                 block_buffer.readpos++;
-                block_buffer.readpos &= BLOCK_BUFFER_SIZE_MASK;
+                block_buffer.readpos &= kBlockBufferSizeMask;
                 return b;
         }
 

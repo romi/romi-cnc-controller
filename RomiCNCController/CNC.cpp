@@ -21,16 +21,18 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#include "Timer.h"
-#include "Controller.h"
 #include "Block.h"
-#include "Stepper.h"
 #include "CNC.h"
 
 namespace romi {
 
-        CNC::CNC()
-                : state_(kStateRunning),
+        CNC::CNC(romiserial::RomiSerial& serial,
+                 IController& controller,
+                 IStepperController& steppers)
+                : serial_(serial),
+                  controller_(controller),
+                  steppers_(steppers),
+                  state_(kStateRunning),
                   homing_mode_(kHomingDefault),
                   error_code_(0),
                   error_message_(kNoMessage)
@@ -38,37 +40,36 @@ namespace romi {
                 clear_error();
                 for (int i = 0; i < 3; i++) {
                         homing_axes_[i] = -1;
-                        homing_speeds_[i]; 1000;
+                        homing_speeds_[i] = 1000;
                         limit_switches_[i] = false;
                 }
         }
 
-        void CNC::init()
+        void CNC::init(TimerMode mode)
         {
                 init_block_buffer();
-                controller_init();
-                controller_disable();
-                stepper_init(k10kHz);
-                stepper_enable();
+                steppers_.init();
+                controller_.init(mode);
+                controller_.disable();
         }
         
         void CNC::power_up()
         {
                 clear_error();
-                controller_enable();
+                controller_.enable();
         }
         
         void CNC::power_down()
         {
                 clear_error();
-                controller_disable();
+                controller_.disable();
         }
         
-        uint8_t CNC::pause()
+        int8_t CNC::pause()
         {
                 clear_error();
                 if (state_ == kStateRunning) {
-                        stepper_disable();
+                        controller_.disable();
                         state_ = kStatePaused;
                 } else if (state_ == kStatePaused) {
                         // all good
@@ -78,12 +79,12 @@ namespace romi {
                 return error_code_;
         }
 
-        uint8_t CNC::continue_()
+        int8_t CNC::continue_()
         {
                 clear_error();
                 if (state_ == kStatePaused) {
                         state_ = kStateRunning;
-                        stepper_enable();
+                        controller_.enable();
                 } else if (state_ == kStateRunning) {
                         // all good
                 } else {
@@ -92,28 +93,28 @@ namespace romi {
                 return error_code_;
         }
         
-        uint8_t CNC::reset()
+        int8_t CNC::reset()
         {
                 clear_error();
                 if (state_ == kStatePaused) {
                         state_ = kStateRunning;
                         block_buffer_clear();
-                        stepper_reset();
-                        stepper_enable();
-                } else if (state_ == kStateRunning) {
+                        controller_.reset();
+                        controller_.enable();
+                } else if (state_ == kStateHoming) {
                         block_buffer_clear();
-                        stepper_reset();
+                        controller_.reset();
                 } else {
                         set_error(kInvalidState, kInvalidStateMessage);
                 }
                 return error_code_;
         }
 
-        uint8_t CNC::zero()
+        int8_t CNC::zero()
         {
                 clear_error();
                 if (state_ == kStatePaused || is_idle()) {
-                        stepper_zero();
+                        controller_.zero();
                 } else {
                         set_error(kInvalidState, kInvalidStateMessage);
                 }
@@ -123,7 +124,7 @@ namespace romi {
         bool CNC::is_idle()
         {
                 return ((state_ == kStateRunning)
-                        && stepper_is_idle());
+                        && controller_.is_idle());
         }
 
         char CNC::get_state()
@@ -133,15 +134,15 @@ namespace romi {
 
         bool CNC::is_enabled()
         {
-                return controller_is_enabled();
+                return steppers_.is_enabled();
         }
 
         void CNC::set_spindle(bool state)
         {
-                controller_set_spindle(state);
+                steppers_.set_relay(0, state);
         }
 
-        uint8_t CNC::schedule_moveto(int16_t dt, int16_t dx, int16_t dy, int16_t dz)
+        int8_t CNC::schedule_moveto(int16_t dt, int16_t dx, int16_t dy, int16_t dz)
         {
                 clear_error();
                 if (state_ == kStateRunning || state_ == kStatePaused) {
@@ -166,34 +167,37 @@ namespace romi {
                 return error_code_;
         }
 
-        uint8_t CNC::schedule_moveat(int16_t dx, int16_t dy, int16_t dz)
+        int8_t CNC::schedule_moveat(int16_t dx, int16_t dy, int16_t dz)
         {
+                //serial_.log("schedule_moveat");
                 clear_error();
                 if (state_ == kStateRunning || state_ == kStatePaused) {
-                        if (dx == 0 && dy == 0 && dz == 0) {
-                                // Requested to move a zero speed: do stop. Equal to
-                                // reset().
-                                reset();
-                        } else {
-                                block_t *block = block_buffer_get_empty();
-                                if (block) {
-                                        block->type = BLOCK_MOVEAT;
-                                        block->data[DT] = 1000;
-                                        block->data[DX] = dx;
-                                        block->data[DY] = dy;
-                                        block->data[DZ] = dz;
-                                        block_buffer_ready();
-                                } else {
-                                        set_error(kAgain, kAgainMessage);
-                                }
-                        }
+                        moveat(dx, dy, dz);
                 } else {
                         set_error(kInvalidState, kInvalidStateMessage);
                 }
                 return error_code_;
         }
 
-        uint8_t CNC::schedule_move(int16_t dt, int16_t dx, int16_t dy, int16_t dz)
+        int8_t CNC::moveat(int16_t dx, int16_t dy, int16_t dz)
+        {
+                //serial_.log("moveat");
+                clear_error();
+                block_t *block = block_buffer_get_empty();
+                if (block) {
+                        block->type = BLOCK_MOVEAT;
+                        block->data[DT] = 1000;
+                        block->data[DX] = dx;
+                        block->data[DY] = dy;
+                        block->data[DZ] = dz;
+                        block_buffer_ready();
+                } else {
+                        set_error(kAgain, kAgainMessage);
+                }
+                return error_code_;
+        }
+
+        int8_t CNC::schedule_move(int16_t dt, int16_t dx, int16_t dy, int16_t dz)
         {
                 clear_error();
                 if (state_ == kStateRunning || state_ == kStatePaused) {
@@ -219,7 +223,7 @@ namespace romi {
                 return error_code_;
         }
 
-        uint8_t CNC::homing_mode(uint8_t mode)
+        int8_t CNC::homing_mode(uint8_t mode)
         {
                 clear_error();
                 if (mode == kHomingDefault
@@ -231,7 +235,7 @@ namespace romi {
                 return error_code_;
         }
         
-        uint8_t CNC::homing_axes(int8_t a0, int8_t a1, int8_t a2)
+        int8_t CNC::homing_axes(int8_t a0, int8_t a1, int8_t a2)
         {
                 clear_error();
                 if (a0 >= -1 && a0 <= 2) {
@@ -252,7 +256,7 @@ namespace romi {
                 return error_code_;
         }
         
-        uint8_t CNC::homing_speeds(int16_t v0, int16_t v1, int16_t v2)
+        int8_t CNC::homing_speeds(int16_t v0, int16_t v1, int16_t v2)
         {
                 clear_error();
                 if ((homing_axes_[0] >= 0) && (v0 <= 0 || v0 > 2000)) {
@@ -273,21 +277,23 @@ namespace romi {
                 return error_code_;
         }
 
-        uint8_t CNC::homing()
+        int8_t CNC::homing()
         {
+                //serial_.log("homing");
+                
                 clear_error();
                 
                 // Stop whatever is ongoing
                 reset();
 
                 // Make sure the timer is running
-                stepper_enable();
+                controller_.enable();
 
                 state_ = kStateHoming;
         
                 if (do_homing()) {
                         reset();
-                        stepper_zero();
+                        controller_.zero();
                         state_ = kStateRunning;
                 } else {
                         state_ = kStateError;
@@ -298,6 +304,7 @@ namespace romi {
 
         bool CNC::do_homing()
         {
+                //serial_.log("do_homing");
                 bool success = true;
                 for (uint8_t i = 0; i < 3; i++) {
                         int8_t axis = homing_axes_[i];
@@ -307,17 +314,20 @@ namespace romi {
                                         break;
                         }
                 }
+                //serial_.log("do_homing DONE");
                 return success;
         }
 
         bool CNC::do_homing_axis(int8_t axis)
         {
+                //serial_.log("do_homing_axis");
                 bool success = false; 
                 if (homing_mode_ == kHomingDefault) {
                         success = do_homing_axis_default(axis);
                 } else if (homing_mode_ == kHomingWithContact) {
                         success = do_homing_axis_contact(axis);
                 }
+                //serial_.log("do_homing_axis DONE");
                 return success;
         }
 
@@ -327,33 +337,30 @@ namespace romi {
                 if (homing_moveto_switch_pressed(axis) == 0 
                     && homing_moveto_switch_released(axis) == 0
                     && homing_move(100, homing_speeds_[axis]/5, axis) == 0) {
-                        // Don't remove the RUNNING because wait() depends on
-                        // it!
-                        state_ = kStateRunning;
-                        wait();
                         success = true;
                 }
                 return success;
         }
 
-        uint8_t CNC::homing_moveto_switch_pressed(int8_t axis)
+        int8_t CNC::homing_moveto_switch_pressed(int8_t axis)
         {
+                //serial_.log("homing_moveto_switch_pressed");
                 return homing_wait_switch(-homing_speeds_[axis], axis, false);
         }
 
-        uint8_t CNC::homing_moveto_switch_released(int8_t axis)
+        int8_t CNC::homing_moveto_switch_released(int8_t axis)
         {
                 return homing_wait_switch(homing_speeds_[axis], axis, true);
         }
 
-        uint8_t CNC::homing_wait_switch(int speed, int8_t axis, bool state)
+        int8_t CNC::homing_wait_switch(int16_t speed, int8_t axis, bool state)
         {
-                int err = 0;
-                int dx, dy, dz;
-
-                // Serial.print("#!Axis=");
-                // Serial.print(axis);
-                // Serial.print(":xxxx\r\n");
+                // if (state) 
+                        //serial_.log("homing_wait_switch: till state true");
+                // else
+                        //serial_.log("homing_wait_switch: till state false");
+                
+                int8_t err = 0;
         
                 err = homing_moveat(speed, axis);
                 if (err != 0)
@@ -361,32 +368,35 @@ namespace romi {
         
                 while (1) {
                         update_limit_switches();
-                        // Serial.print("#!L=");
-                        // Serial.print(limit_switches[axis]);
-                        // Serial.print(":xxxx\r\n");
-                
+
+                        // if (limit_switches_[axis]) 
+                                //serial_.log("Switch true");
+                        // else
+                                //serial_.log("Switch false");
+
                         if (limit_switches_[axis] == state) {
+                                //serial_.log("Homing axis done!");
                                 // This will stop the moveat
-                                err = schedule_move(0, 0, 0, 0);
+                                err = moveat(0, 0, 0);
+                                err = reset();
                                 break;
                         }
                 
-                        // romiSerial.handle_input();
-                        // delay(1);
+                        serial_.handle_input();
+                        //delay(1);
                 }
+                //serial_.log("homing_wait_switch done");
                 return err;
         }
 
         bool CNC::do_homing_axis_contact(int8_t axis)
         {
+                //serial_.log("do_homing_axis_contact");
                 bool success = false; 
                 if (homing_moveto_switch_pressed(axis) == 0) {
-                        // Don't remove the RUNNING because wait() depends on
-                        // it!
-                        state_ = kStateRunning;
-                        wait();
                         success = true;
                 }
+                //serial_.log("do_homing_axis_contact DONE");
                 return success;
         }
 
@@ -401,14 +411,14 @@ namespace romi {
 
         void CNC::update_limit_switches()
         {
-                limit_switches_[0] = controller_x_limit_switch();
-                limit_switches_[1] = controller_y_limit_switch();
-                limit_switches_[2] = controller_z_limit_switch();
+                limit_switches_[0] = steppers_.x_limit_switch();
+                limit_switches_[1] = steppers_.y_limit_switch();
+                limit_switches_[2] = steppers_.z_limit_switch();
         }
 
-        uint8_t CNC::homing_move(int dt, int delta, int8_t axis)
+        int8_t CNC::homing_move(int16_t dt, int16_t delta, int8_t axis)
         {
-                int r;
+                int8_t r;
                 if (axis == 0)
                         r = schedule_move(dt, delta, 0, 0);
                 else if (axis == 1)
@@ -418,30 +428,31 @@ namespace romi {
                 return r;
         }
 
-        uint8_t CNC::homing_moveat(int v, int8_t axis)
+        int8_t CNC::homing_moveat(int16_t v, int8_t axis)
         {
-                int r;
+                //serial_.log("homing_moveat");
+                int8_t r;
                 if (axis == 0)
-                        r = schedule_moveat(v, 0, 0);
+                        r = moveat(v, 0, 0);
                 else if (axis == 1)
-                        r = schedule_moveat(0, v, 0);
+                        r = moveat(0, v, 0);
                 else if (axis == 2)
-                        r = schedule_moveat(0, 0, v);
+                        r = moveat(0, 0, v);
                 return r;
         }
 
         void CNC::get_position(int32_t *pos)
         {
-                stepper_get_position(pos);
+                controller_.get_position(pos);
         }
         
-        void CNC::set_error(uint8_t code, const char *message)
+        void CNC::set_error(int8_t code, const char *message)
         {
                 error_code_ = code;
                 error_message_ = message;
         }
 
-        uint8_t CNC::error_code()
+        int8_t CNC::error_code()
         {
                 return error_code_;
         }

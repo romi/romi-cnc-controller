@@ -27,23 +27,26 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <Arduino.h>
-#include "Timer.h"
+#include "TimerUno.h"
 
-// volatile uint16_t debug_reset_init = 0;
-// volatile uint16_t debug_reset_calls = 0;
+volatile uint32_t count_timer_calls_ = 0;
+volatile uint32_t count_reset_calls_ = 0;
 
 namespace romi {
 
-        
         TimerCallback timer_callback_ = nullptr;
         TimerCallback reset_callback_ = nullptr;
 
         void init_stepper_timer(TimerMode mode);
         void init_reset_timer();
 
-        void timer_init(TimerMode mode,
-                        TimerCallback timer_callback,
-                        TimerCallback reset_callback)
+        TimerUno::TimerUno()
+        {
+        }
+        
+        void TimerUno::init(TimerMode mode,
+                            TimerCallback timer_callback,
+                            TimerCallback reset_callback)
         {
                 timer_callback_ = timer_callback;
                 reset_callback_ = reset_callback;
@@ -53,7 +56,6 @@ namespace romi {
                 init_reset_timer();
                 sei(); 
         }
-
 
         /*
           https://fr.wikiversity.org/wiki/Micro_contr%C3%B4leurs_AVR/Le_Timer_1
@@ -227,6 +229,7 @@ namespace romi {
          */
         ISR(TIMER2_COMPA_vect)
         {
+                count_reset_calls_++;
                 /* Reset the step pins to zero */
                 reset_callback_();
                 /* Disable Timer2 interrupt */
@@ -239,10 +242,11 @@ namespace romi {
          */
         ISR(TIMER1_COMPA_vect)
         {
+                count_timer_calls_++;
                 timer_callback_();
         }
 
-        void timer_schedule_reset()
+        void TimerUno::schedule_reset()
         {
                 // debug_reset_init++;
                 
@@ -252,7 +256,7 @@ namespace romi {
                 TIMSK2 |= (1 << OCIE2A);
         }
 
-        void timer_enable()
+        void TimerUno::enable()
         {
                 /* Initialize counter */
                 TCNT1 = 0;
@@ -262,12 +266,22 @@ namespace romi {
                 TIMSK1 |= (1 << OCIE1A);
         }
 
-        void timer_disable()
+        void TimerUno::disable()
         {
                 /* Set the status of the stepper thread */
                 /*thread_state = STATE_THREAD_IDLE;*/
                 /* Disable Timer1 interrupt */
                 TIMSK1 &= ~(1 << OCIE1A);
+        }
+
+        uint32_t TimerUno::get_count_timer_calls()
+        {
+                return count_timer_calls_;
+        }
+        
+        uint32_t TimerUno::get_count_reset_calls()
+        {
+                return count_reset_calls_;
         }
 }
 

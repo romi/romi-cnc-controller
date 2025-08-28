@@ -22,24 +22,31 @@
 
  */
 
-#ifndef _CNC_TIMER_H_
-#define _CNC_TIMER_H_
+#ifndef _CNC_TIMERUNO_H_
+#define _CNC_TIMERUNO_H_
+
+#include "ITimer.h"
 
 namespace romi {
 
-        typedef enum {
-                k10kHz = 10,
-                k25kHz = 25
-        } TimerMode;
-        
-        typedef void (*TimerCallback)(void);
+        class TimerUno : public ITimer
+        {
+        protected:
+                
+        public:
+                TimerUno();
+                ~TimerUno() override = default;
+                
+                void init(TimerMode mode,
+                          TimerCallback timer_callback,
+                          TimerCallback reset_callback) override;
+                void enable() override;
+                void disable() override;
+                void schedule_reset() override;
 
-        void timer_init(TimerMode mode,
-                        TimerCallback timer_callback,
-                        TimerCallback reset_callback);
-        void timer_enable();
-        void timer_disable();
-        void timer_schedule_reset();
+                uint32_t get_count_timer_calls() override;
+                uint32_t get_count_reset_calls() override;
+        };
 }
 
-#endif // _CNC_TIMER_H_
+#endif // _CNC_TIMERUNO_H_

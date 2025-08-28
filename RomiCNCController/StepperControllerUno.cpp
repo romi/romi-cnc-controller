@@ -26,7 +26,7 @@
 
 #include <avr/io.h>
 #include <Arduino.h>
-#include "Controller.h"
+#include "StepperControllerUno.h"
 
 namespace romi {
 
@@ -35,7 +35,7 @@ namespace romi {
 #define XCARVE_CONTROLLER 2 
 #define CABLEBOT_CONTROLLER 3 
 
-#define CONTROLLER XCARVE_CONTROLLER
+#define CONTROLLER CABLEBOT_CONTROLLER
         
 // Romi Rover 
 #if CONTROLLER == GSHIELD_CONTROLLER
@@ -95,20 +95,23 @@ namespace romi {
 #define STEPPERS_DISABLE_BIT    0  // Uno Digital Pin 8
 #define STEPPERS_DISABLE_MASK   (1 << STEPPERS_DISABLE_BIT)
 
-        static bool is_enabled_ = false;
-        
+        StepperControllerUno::StepperControllerUno()
+                : is_enabled_(false)
+        {
+        }
+
         /**
          * \brief Configure the step and dir pins as output.
          */
-        void controller_init() 
+        void StepperControllerUno::init() 
         {
-                controller_disable();
-                
                 /* Enable output on the selected pins */
                 STEP_DDR |= STEP_MASK;
                 DIRECTION_DDR |= DIRECTION_MASK;
                 STEPPERS_DISABLE_DDR |= STEPPERS_DISABLE_MASK;
         
+                disable();
+                
                 // Set as input pins and enable internal pull-up
                 // resistors. Normal high operation
                 pinMode(PIN_LIMIT_SWITCH_X, INPUT_PULLUP);  
@@ -136,7 +139,7 @@ namespace romi {
                 STEPPERS_DISABLE_PORT &= ~(1 << STEPPERS_DISABLE_BIT);  \
         }
 
-        void controller_enable()
+        void StepperControllerUno::enable()
         {
 #if ENABLE_PIN_HIGH
                 set_enable_pin_high();
@@ -146,7 +149,7 @@ namespace romi {
                 is_enabled_ = true;
         }
 
-        void controller_disable()
+        void StepperControllerUno::disable()
         {
 #if ENABLE_PIN_HIGH
                 set_enable_pin_low();
@@ -156,7 +159,7 @@ namespace romi {
                 is_enabled_ = false;
         }
 
-        bool controller_is_enabled()
+        bool StepperControllerUno::is_enabled()
         {
                 return is_enabled_;
         }
@@ -165,19 +168,19 @@ namespace romi {
          * \brief Toggle a direction bit in the DIR mask.
          */
 
-        uint8_t controller_toggle_x_dir(uint8_t mask)
+        uint8_t StepperControllerUno::toggle_x_dir(uint8_t mask)
         {
                 mask |= (1 << X_DIRECTION_BIT);
                 return mask;
         }
                 
-        uint8_t controller_toggle_y_dir(uint8_t mask)
+        uint8_t StepperControllerUno::toggle_y_dir(uint8_t mask)
         {
                 mask |= (1 << Y_DIRECTION_BIT);
                 return mask;
         }
         
-        uint8_t controller_toggle_z_dir(uint8_t mask)
+        uint8_t StepperControllerUno::toggle_z_dir(uint8_t mask)
         {
                 mask |= (1 << Z_DIRECTION_BIT);
                 return mask;
@@ -186,7 +189,7 @@ namespace romi {
         /**
          * \brief Enable the DIR pins according to mask.
          */
-        void controller_set_dir_pins(uint8_t __pins)                            
+        void StepperControllerUno::set_dir_pins(uint8_t __pins)                            
         {                                               
                 DIRECTION_PORT &= ~DIRECTION_MASK;      
                 DIRECTION_PORT |= __pins;               
@@ -196,19 +199,19 @@ namespace romi {
          * \brief Toggle a step bit in the pins mask.
          */
 
-        uint8_t controller_toggle_x_step(uint8_t mask)
+        uint8_t StepperControllerUno::toggle_x_step(uint8_t mask)
         {
                 mask |= (1 << X_STEP_BIT);
                 return mask;
         }
         
-        uint8_t controller_toggle_y_step(uint8_t mask)
+        uint8_t StepperControllerUno::toggle_y_step(uint8_t mask)
         {
                 mask |= (1 << Y_STEP_BIT);
                 return mask;
         }
                 
-        uint8_t controller_toggle_z_step(uint8_t mask)
+        uint8_t StepperControllerUno::toggle_z_step(uint8_t mask)
         {
                 mask |= (1 << Z_STEP_BIT);
                 return mask;
@@ -217,7 +220,7 @@ namespace romi {
         /**
          * \brief Enable the step pins according to mask.
          */
-        void controller_set_step_pins(uint8_t mask) 
+        void StepperControllerUno::set_step_pins(uint8_t mask) 
         {                                                      
                 STEP_PORT |= mask;                   
         }
@@ -225,30 +228,32 @@ namespace romi {
         /**
          * \brief Reset the step pins to zero.
          */
-        void controller_reset_step_pins()
+        void StepperControllerUno::reset_step_pins()
         {
                 STEP_PORT &= ~STEP_MASK;
         }
 
-        bool controller_x_limit_switch()
+        bool StepperControllerUno::x_limit_switch()
         {
                 return digitalRead(PIN_LIMIT_SWITCH_X) == HIGH;
         }
         
-        bool controller_y_limit_switch()
+        bool StepperControllerUno::y_limit_switch()
         {
                 return digitalRead(PIN_LIMIT_SWITCH_Y) == HIGH;
         }
         
-        bool controller_z_limit_switch()
+        bool StepperControllerUno::z_limit_switch()
         {
                 return digitalRead(PIN_LIMIT_SWITCH_Z) == HIGH;
         }
         
-        void controller_set_spindle(bool state)
+        void StepperControllerUno::set_relay(uint8_t index, bool state)
         {
-                int value = state? HIGH : LOW;
-                digitalWrite(PIN_SPINLDE, value);
+                if (index == 0) {
+                        int value = state? HIGH : LOW;
+                        digitalWrite(PIN_SPINLDE, value);
+                }
         }
 
 }

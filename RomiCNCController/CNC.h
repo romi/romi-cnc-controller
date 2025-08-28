@@ -24,7 +24,9 @@
 #ifndef _CNC_LOWLEVELCNC_H_
 #define _CNC_LOWLEVELCNC_H_
 
-#include "Timer.h"
+#include <RomiSerial.h>
+#include "IController.h"
+#include "IStepperController.h"
 
 namespace romi {
 
@@ -62,6 +64,9 @@ namespace romi {
                 static constexpr const char *kInvalidSpeedMessage = "Bad speed";
                 
         protected:
+                romiserial::RomiSerial& serial_;
+                IController& controller_;
+                IStepperController& steppers_;
                 char state_;
                 int8_t homing_axes_[3]; // =  {-1, -1, -1};
                 int16_t homing_speeds_[3]; // =  {1000, 1000, 400};
@@ -71,52 +76,60 @@ namespace romi {
                 const char *error_message_;
                 
         public:
-                CNC();
+                CNC(romiserial::RomiSerial& serial,
+                    IController& controller,
+                    IStepperController& steppers);
                 ~CNC() {}
 
-                void init();
+                CNC(const CNC&) = delete;
+                CNC(CNC&&) = delete;
+                CNC& operator=(const CNC&) = delete;
+                CNC& operator=(CNC&&) = delete;
+                
+                void init(TimerMode mode);
 
                 void power_up();
                 void power_down();
-                uint8_t pause();
-                uint8_t continue_();
+                int8_t pause();
+                int8_t continue_();
                 
-                uint8_t reset();
-                uint8_t zero();
+                int8_t reset();
+                int8_t zero();
                 
                 bool is_idle();
                 char get_state();
                 bool is_enabled();
                 
-                uint8_t homing();
-                uint8_t homing_mode(uint8_t mode);
-                uint8_t homing_axes(int8_t a0, int8_t a1, int8_t a2);
-                uint8_t homing_speeds(int16_t vx, int16_t vy, int16_t vz);
+                int8_t homing();
+                int8_t homing_mode(uint8_t mode);
+                int8_t homing_axes(int8_t a0, int8_t a1, int8_t a2);
+                int8_t homing_speeds(int16_t vx, int16_t vy, int16_t vz);
                 
-                uint8_t schedule_moveto(int16_t dt, int16_t dx, int16_t dy, int16_t dz);
-                uint8_t schedule_move(int16_t dt, int16_t dx, int16_t dy, int16_t dz);
-                uint8_t schedule_moveat(int16_t dx, int16_t dy, int16_t dz);
+                int8_t schedule_moveto(int16_t dt, int16_t dx, int16_t dy, int16_t dz);
+                int8_t schedule_move(int16_t dt, int16_t dx, int16_t dy, int16_t dz);
+                int8_t schedule_moveat(int16_t dx, int16_t dy, int16_t dz);
+                int8_t moveat(int16_t dx, int16_t dy, int16_t dz);
 
                 void get_position(int32_t *pos);
                 void set_spindle(bool state);
                 
-                uint8_t error_code();
+                int8_t error_code();
                 const char *error_message();
                 
         protected:
                 bool do_homing();
                 bool do_homing_axis(int8_t axis);
                 bool do_homing_axis_default(int8_t axis);
-                uint8_t homing_moveto_switch_pressed(int8_t axis);
-                uint8_t homing_moveto_switch_released(int8_t axis);
-                uint8_t homing_wait_switch(int speed, int8_t axis, bool state);
+                int8_t homing_moveto_switch_pressed(int8_t axis);
+                int8_t homing_moveto_switch_released(int8_t axis);
+                int8_t homing_wait_switch(int16_t speed, int8_t axis, bool state);
                 bool do_homing_axis_contact(int8_t axis);
                 void update_limit_switches();
-                uint8_t homing_move(int dt, int delta, int8_t axis);
-                uint8_t homing_moveat(int v, int8_t axis);                
+                int8_t homing_move(int16_t dt, int16_t delta, int8_t axis);
+                int8_t homing_moveat(int16_t v, int8_t axis);                
                 void wait();
 
-                void set_error(uint8_t code, const char *message);
+                void set_error(int8_t code, const char *message);
                 
                 void clear_error() {
                         error_code_ = 0;

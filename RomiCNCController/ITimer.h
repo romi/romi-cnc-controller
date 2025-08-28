@@ -21,32 +21,35 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _CNC_STEPPER_H_
-#define _CNC_STEPPER_H_
 
-#include "Timer.h"
+#ifndef _CNC_ITIMER_H_
+#define _CNC_ITIMER_H_
 
 namespace romi {
 
-        /**
-         * \brief: Configure the stepper. Must be called with interrupts
-         * disabled (see cli()).
-         *
-         */
-        void stepper_init(TimerMode mode);
+        typedef enum {
+                k10kHz = 10,
+                k25kHz = 25
+        } TimerMode;
+        
+        typedef void (*TimerCallback)(void);
 
+        class ITimer
+        {
+        public:
+                virtual ~ITimer() = default;
+                
+                virtual void init(TimerMode mode,
+                                  TimerCallback timer_callback,
+                                  TimerCallback reset_callback) = 0;
+                virtual void enable() = 0;
+                virtual void disable() = 0;
+                virtual void schedule_reset() = 0;
 
-        /**
-         * \brief: Sets the current position as the origin.
-         *
-         */
-        void stepper_zero();
+                virtual uint32_t get_count_timer_calls() = 0;
+                virtual uint32_t get_count_reset_calls() = 0;
 
-        void stepper_reset();
-        void stepper_enable();
-        void stepper_disable();
-        bool stepper_is_idle();
-        void stepper_get_position(int32_t *pos);
+        };
 }
 
-#endif // _CNC_STEPPER_H_
+#endif // _CNC_ITIMER_H_

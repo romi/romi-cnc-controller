@@ -25,7 +25,7 @@
 #if defined(ARDUINO_ARCH_ESP32)
 
 #include <Arduino.h>
-#include "Controller.h"
+#include "XXXController.h"
 
 namespace romi {
 

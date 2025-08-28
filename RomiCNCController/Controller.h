@@ -24,31 +24,52 @@
 #ifndef _CNC_CONTROLLER_H_
 #define _CNC_CONTROLLER_H_
 
-#include <stdint.h>
+#include "IStepperController.h"
+#include "ITimer.h"
+#include "Block.h"
+#include "IController.h"
 
 namespace romi {
-        void controller_init();
 
-        void controller_enable();
-        void controller_disable();
-        bool controller_is_enabled();
+        class Controller : public IController
+        {
+        protected:
+                IStepperController& steppers_;
+                ITimer& timer_;
+                volatile int32_t position_[3];
+                volatile int32_t accumulation_error_[3];
+                volatile int32_t delta_[3];
+                volatile int32_t dt_;
+                volatile int16_t step_dir_[3];
+                volatile block_t *current_block_;
+                volatile int32_t interrupts_ = 0;
+                volatile int16_t milliseconds_ = 0;
+                volatile bool reset_ = 0;
+                int32_t interrupts_per_millisecond_;
 
-        uint8_t controller_toggle_x_dir(uint8_t dir);
-        uint8_t controller_toggle_y_dir(uint8_t dir);
-        uint8_t controller_toggle_z_dir(uint8_t dir);
-        void controller_set_dir_pins(uint8_t dir);
-
-        uint8_t controller_toggle_x_step(uint8_t step);
-        uint8_t controller_toggle_y_step(uint8_t step);
-        uint8_t controller_toggle_z_step(uint8_t step);
-        void controller_set_step_pins(uint8_t step);
-        void controller_reset_step_pins();
-
-        bool controller_x_limit_switch();
-        bool controller_y_limit_switch();
-        bool controller_z_limit_switch();
-
-        void controller_set_spindle(bool state);
+                friend void run_steppers_();                
+                void run_steppers();
+                
+                friend void reset_step_pins_();                
+                void reset_step_pins();
+                
+        public:
+                Controller(IStepperController& steppers, ITimer& timer);
+                ~Controller() override = default;
+                
+                Controller(const Controller&) = delete;
+                Controller(Controller&&) = delete;
+                Controller& operator=(const Controller&) = delete;
+                Controller& operator=(Controller&&) = delete;
+                
+                void init(TimerMode mode) override;
+                void zero() override;
+                void reset() override;
+                void enable() override;
+                void disable() override;
+                bool is_idle() override;
+                void get_position(int32_t *pos) override;
+        };
 }
 
-#endif // _CNC_CONFIG_H_
+#endif // _CNC_CONTROLLER_H_

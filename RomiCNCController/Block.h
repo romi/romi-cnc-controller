@@ -79,9 +79,9 @@ namespace romi {
                 int16_t data[4];
         };
 
-/* The buffer size should be a power of two. */
-#define BLOCK_BUFFER_SIZE 32
-#define BLOCK_BUFFER_SIZE_MASK (BLOCK_BUFFER_SIZE - 1)
+        /* The buffer size should be a power of two. */
+        static const int16_t kBlockBufferSize = 32;
+        static const int16_t kBlockBufferSizeMask = (kBlockBufferSize - 1);
 
         /**
          * \brief The 'block_buffer' is a circular buffer of blocks.
@@ -89,7 +89,7 @@ namespace romi {
         struct block_buffer_t {
                 int16_t readpos;
                 int16_t writepos;
-                block_t block[BLOCK_BUFFER_SIZE];
+                block_t block[kBlockBufferSize];
         };
 
         extern block_buffer_t block_buffer;
@@ -129,7 +129,7 @@ namespace romi {
          * if (block_buffer.writepos >= block_buffer.readpos)
          *         return block_buffer.writepos - block_buffer.readpos;
          * else 
-         *         return (BLOCK_BUFFER_SIZE
+         *         return (kBlockBufferSize
          *                 + block_buffer.writepos
          *                 - block_buffer.readpos);
          *
@@ -137,8 +137,8 @@ namespace romi {
          * is a power of two.
          */
 #define BLOCK_BUFFER_AVAILABLE()                                \
-        ((BLOCK_BUFFER_SIZE + block_buffer.writepos             \
-          - block_buffer.readpos) & BLOCK_BUFFER_SIZE_MASK)
+        ((kBlockBufferSize + block_buffer.writepos             \
+          - block_buffer.readpos) & kBlockBufferSizeMask)
 
         /**
          * \brief Returns the number of blocks waiting to be executed.
@@ -158,7 +158,7 @@ namespace romi {
          * buffer.
          */
 #define block_buffer_get_next()                                         \
-        ((BLOCK_BUFFER_AVAILABLE() == 0)? 0 : _block_buffer_get_next())
+        ((BLOCK_BUFFER_AVAILABLE() == 0)? nullptr : _block_buffer_get_next())
 
 
         /**
